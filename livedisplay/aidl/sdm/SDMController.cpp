@@ -90,8 +90,15 @@ SDMController::SDMController()
 
     // Initialize SDM backend
     if (init() != android::OK) {
-        // Terminate the program on failure
-        LOG(FATAL) << "Failed to initialize SDM backend";
+        // Do not LOG(FATAL) here. SDM allows only one process to hold the DRM
+        // master; SurfaceFlinger/composer take it first, so a later-livedisplay
+        // start cannot get it and CreateCore fails even on its null-display
+        // fallback path. Aborting turns that into an init restart loop that
+        // drags the whole UI down. Degrade to "backend unavailable" instead:
+        // every accessor below already guards on hctx_.
+        LOG(ERROR) << "Failed to initialize SDM backend, display control unavailable";
+        hctx_ = 0;
+        return;
     }
 }
 
